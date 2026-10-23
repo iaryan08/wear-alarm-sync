@@ -33,7 +33,9 @@ class WearAlarmReader(private val context: Context) {
         Log.d(TAG, "Watch next alarm: $hour:$minute")
 
         val id = SyncAlarmItem.buildId(hour, minute, emptyList())
-        listOf(SyncAlarmItem(id = id, hour = hour, minute = minute))
+        val storedAlarm = WearAlarmStorage.getAlarms(context).find { it.hour == hour && it.minute == minute }
+        val label = storedAlarm?.label ?: ""
+        listOf(SyncAlarmItem(id = id, hour = hour, minute = minute, label = label))
     }
 
     companion object {

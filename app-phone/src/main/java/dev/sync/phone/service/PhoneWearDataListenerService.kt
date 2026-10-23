@@ -9,6 +9,7 @@ import dev.sync.core.model.RemoteAlarmEventMessage
 import dev.sync.core.model.SyncAction
 import dev.sync.phone.alarm.PhoneAlarmInjector
 import dev.sync.phone.notification.PhoneAlarmNotificationListener
+import dev.sync.phone.notification.PhoneAlarmNotifier
 import dev.sync.phone.receiver.PhoneAlarmChangeReceiver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -97,6 +98,18 @@ class PhoneWearDataListenerService : WearableListenerService() {
         Log.i(TAG, "RemoteAlarmEvent received: ${message.event}")
 
         when (message.event) {
+            RemoteAlarmEvent.RINGING_STARTED -> {
+                PhoneAlarmNotifier.showWatchRingingNotification(
+                    context = applicationContext,
+                    hour = message.hour,
+                    minute = message.minute,
+                    label = message.label,
+                    alarmId = message.alarmId ?: ""
+                )
+            }
+            RemoteAlarmEvent.RINGING_STOPPED -> {
+                PhoneAlarmNotifier.cancelWatchRingingNotification(applicationContext)
+            }
             RemoteAlarmEvent.DISMISS -> {
                 val ok = PhoneAlarmNotificationListener.executeDismiss()
                 Log.i(TAG, "Dismiss executed: $ok")
@@ -105,7 +118,6 @@ class PhoneWearDataListenerService : WearableListenerService() {
                 val ok = PhoneAlarmNotificationListener.executeSnooze()
                 Log.i(TAG, "Snooze executed: $ok")
             }
-            else -> Log.d(TAG, "Ignoring event ${message.event} on phone side")
         }
     }
 

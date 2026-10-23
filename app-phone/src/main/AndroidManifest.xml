@@ -55,6 +55,19 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.app.action.NEXT_ALARM_CLOCK_CHANGED" />
+                <action android:name="android.intent.action.ALARM_CHANGED" />
+                <action android:name="oplus.intent.action.OPLUS_NEW_ALARMCLOCK_INSERTED" />
+                <action android:name="com.oplus.alarmclock.alarmclock.SET_NEXT_ALERT" />
+            </intent-filter>
+        </receiver>
+
+        <!-- ── Notification Action Click Receiver (Dismiss / Snooze from phone for watch alarm) ── -->
+        <receiver
+            android:name="dev.sync.phone.receiver.PhoneAlarmActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="dev.sync.phone.action.DISMISS" />
+                <action android:name="dev.sync.phone.action.SNOOZE" />
             </intent-filter>
         </receiver>
 

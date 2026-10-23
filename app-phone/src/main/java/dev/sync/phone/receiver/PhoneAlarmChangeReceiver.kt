@@ -31,9 +31,8 @@ import kotlinx.coroutines.launch
 class PhoneAlarmChangeReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != AlarmManager.ACTION_NEXT_ALARM_CLOCK_CHANGED) return
-
-        Log.d(TAG, "NEXT_ALARM_CLOCK_CHANGED received")
+        val action = intent.action ?: return
+        Log.d(TAG, "Alarm broadcast received: $action")
         val pendingResult = goAsync()
 
         receiverScope.launch {
@@ -49,10 +48,15 @@ class PhoneAlarmChangeReceiver : BroadcastReceiver() {
 
     private suspend fun handleAlarmChange(context: Context) {
         val reader = PhoneAlarmReader(context)
-        val currentAlarms = reader.readNextAlarms()
+        val currentAlarms = reader.readAllAlarms()
 
         if (currentAlarms.isEmpty()) {
-            Log.d(TAG, "No active alarms found — nothing to sync")
+            Log.d(TAG, "No active alarms found — sending empty FULL_SYNC to clear Watch")
+            val message = AlarmSyncMessage(
+                action = SyncAction.FULL_SYNC,
+                alarms = emptyList()
+            )
+            WearableTransport.sendAlarmSync(context, message)
             return
         }
 
@@ -69,12 +73,12 @@ class PhoneAlarmChangeReceiver : BroadcastReceiver() {
         }
 
         val message = AlarmSyncMessage(
-            action = SyncAction.UPSERT,
+            action = SyncAction.FULL_SYNC,
             alarms = alarmsToSync
         )
 
         WearableTransport.sendAlarmSync(context, message)
-        Log.i(TAG, "Synced ${alarmsToSync.size} alarm(s) to Watch")
+        Log.i(TAG, "FULL_SYNC ${alarmsToSync.size} alarm(s) to Watch")
     }
 
     companion object {

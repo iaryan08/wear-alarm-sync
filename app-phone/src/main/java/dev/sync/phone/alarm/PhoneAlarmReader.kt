@@ -4,107 +4,145 @@ import android.app.AlarmManager
 import android.content.Context
 import android.util.Log
 import dev.sync.core.model.SyncAlarmItem
+import dev.sync.phone.notification.PhoneAlarmNotificationListener
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.util.Calendar
 
 /**
- * Reads the next upcoming alarm from the phone's [AlarmManager].
- *
- * ## Strategy — two-tier read
- * 1. **Primary:** [AlarmManager.getNextAlarmClock] — available since API 21, returns the
- *    next alarm's trigger time regardless of OEM.  We derive hour/minute from it.
- * 2. **Fallback (DUMP permission):** If `android.permission.DUMP` has been granted via ADB,
- *    `dumpsys alarm` gives us the full repeating alarm table including day-of-week schedules.
- *    Parsing is kept conservative — if it fails we log a warning and return primary data.
- *
- * Note: [AlarmManager.getNextAlarmClock] returns `null` if no alarm is scheduled.
+ * Reads all active alarms from the phone using a robust multi-source approach:
+ * 1. High-fidelity parsing of `dumpsys alarm` queue for OEM clock packages (OnePlus, Samsung, AOSP).
+ * 2. System [AlarmManager.getNextAlarmClock] for the authoritative immediate next alarm.
+ * 3. Enriches each alarm with its user-defined label from [PhoneAlarmNotificationListener].
  */
 class PhoneAlarmReader(private val context: Context) {
 
     private val alarmManager = context.getSystemService(AlarmManager::class.java)
 
     /**
-     * Returns a list of upcoming alarms.
-     *
-     * Currently returns at most 1 item (the next alarm clock). The [DUMP]-based path
-     * (full table) is implemented in [readAlarmsDump] and called when DUMP is granted.
+     * Reads all active scheduled alarms.
      */
-    suspend fun readNextAlarms(): List<SyncAlarmItem> = withContext(Dispatchers.IO) {
+    suspend fun readAllAlarms(): List<SyncAlarmItem> = withContext(Dispatchers.IO) {
+        val alarmsMap = mutableMapOf<String, SyncAlarmItem>()
+
+        // 1. Try dumpsys alarm table (captures ALL alarms, not just the next one)
+        val dumpAlarms = readAlarmsDump()
+        dumpAlarms?.forEach { alarm ->
+            alarmsMap[alarm.id] = alarm
+        }
+
+        // 2. Also query AlarmManager.nextAlarmClock (ensures next alarm is always captured)
         val nextAlarmInfo = alarmManager.nextAlarmClock
-        if (nextAlarmInfo == null) {
-            Log.d(TAG, "No next alarm clock set")
-            return@withContext emptyList()
-        }
+        if (nextAlarmInfo != null) {
+            val cal = Calendar.getInstance().apply { timeInMillis = nextAlarmInfo.triggerTime }
+            val h = cal.get(Calendar.HOUR_OF_DAY)
+            val m = cal.get(Calendar.MINUTE)
+            val id = SyncAlarmItem.buildId(h, m, emptyList())
+            val label = PhoneAlarmNotificationListener.getCachedLabel(h, m)
 
-        // Convert trigger epoch millis → local hour/minute
-        val calendar = java.util.Calendar.getInstance().apply {
-            timeInMillis = nextAlarmInfo.triggerTime
-        }
-        val hour   = calendar.get(java.util.Calendar.HOUR_OF_DAY)
-        val minute = calendar.get(java.util.Calendar.MINUTE)
-
-        Log.d(TAG, "Next alarm: $hour:$minute (from AlarmManager.getNextAlarmClock)")
-
-        val id = SyncAlarmItem.buildId(hour, minute, emptyList())
-        listOf(
-            SyncAlarmItem(
+            alarmsMap[id] = SyncAlarmItem(
                 id = id,
-                hour = hour,
-                minute = minute,
-                daysOfWeek = emptyList(), // AlarmManager primary doesn't expose repeat days
-                label = "",
+                hour = h,
+                minute = m,
+                label = label,
                 isEnabled = true
             )
-        )
+        }
+
+        val results = alarmsMap.values.sortedWith(compareBy({ it.hour }, { it.minute }))
+        Log.d(TAG, "readAllAlarms found ${results.size} active alarm(s): ${results.map { "${it.hour}:${it.minute}" }}")
+        results
     }
 
     /**
-     * Attempts to read the full alarm table via `dumpsys alarm`.
-     * Requires `android.permission.DUMP` (granted once via ADB; persists across reboots).
-     *
-     * Returns `null` if DUMP is not granted or parsing fails.
+     * Backwards-compatible alias for UI and receivers.
      */
-    suspend fun readAlarmsDump(): List<SyncAlarmItem>? = withContext(Dispatchers.IO) {
-        try {
+    suspend fun readNextAlarms(): List<SyncAlarmItem> = readAllAlarms()
+
+    /**
+     * Parses all scheduled alarms from `dumpsys alarm` output.
+     */
+    private fun readAlarmsDump(): List<SyncAlarmItem>? {
+        return try {
             val process = Runtime.getRuntime().exec(arrayOf("dumpsys", "alarm"))
-            val output  = process.inputStream.bufferedReader().readText()
+            val output = process.inputStream.bufferedReader().readText()
             process.waitFor()
 
-            // Parse registered clock package alarm table entries (AOSP and OEM deskclock variants).
-            // Extracts relative trigger offsets from the alarm queue definition.
-            val results = mutableListOf<SyncAlarmItem>()
-            val alarmLineRegex = Regex("""when=\+(\d+)h(\d+)m""")
+            val results = mutableMapOf<String, SyncAlarmItem>()
 
-            output.lines().forEach { line ->
-                if (line.contains("deskclock", ignoreCase = true) ||
-                    line.contains("walarm*:alarm", ignoreCase = true)) {
+            // Regex 1: Matches origWhen formatted as "2026-10-23 07:50:00.000" in clock sections
+            val origWhenDateRegex = Regex("""origWhen=(\d{4}-\d{2}-\d{2}\s+(\d{2}):(\d{2}):\d{2})""")
 
-                    val match = alarmLineRegex.find(line) ?: return@forEach
-                    val relativeHours   = match.groupValues[1].toIntOrNull() ?: return@forEach
-                    val relativeMinutes = match.groupValues[2].toIntOrNull() ?: return@forEach
+            // Regex 2: Matches epoch timestamps like "origWhen 1792716780000"
+            val origWhenEpochRegex = Regex("""origWhen\s+(\d{12,14})""")
 
-                    val now = java.util.Calendar.getInstance()
-                    now.add(java.util.Calendar.HOUR_OF_DAY, relativeHours)
-                    now.add(java.util.Calendar.MINUTE, relativeMinutes)
+            // Regex 3: Matches relative offsets like "when=+1h5m"
+            val relativeRegex = Regex("""when=\+(\d+)h(\d+)m""")
 
-                    val h = now.get(java.util.Calendar.HOUR_OF_DAY)
-                    val m = now.get(java.util.Calendar.MINUTE)
-                    val id = SyncAlarmItem.buildId(h, m, emptyList())
+            val lines = output.lines()
+            for (i in lines.indices) {
+                val line = lines[i]
 
-                    if (results.none { it.id == id }) {
-                        results += SyncAlarmItem(id = id, hour = h, minute = m)
+                // Look for lines belonging to deskclock / clock apps
+                val isClockLine = line.contains("deskclock", ignoreCase = true) ||
+                        line.contains("clockpackage", ignoreCase = true) ||
+                        line.contains("walarm*:change_state", ignoreCase = true) ||
+                        line.contains("walarm*:indicator", ignoreCase = true)
+
+                if (!isClockLine) continue
+
+                // Check epoch on same line (e.g. Alarm{... origWhen 1792716780000 ... com.oneplus.deskclock})
+                origWhenEpochRegex.find(line)?.let { match ->
+                    val epoch = match.groupValues[1].toLongOrNull()
+                    if (epoch != null && epoch > System.currentTimeMillis() - 60_000L) {
+                        val cal = Calendar.getInstance().apply { timeInMillis = epoch }
+                        val h = cal.get(Calendar.HOUR_OF_DAY)
+                        val m = cal.get(Calendar.MINUTE)
+                        val id = SyncAlarmItem.buildId(h, m, emptyList())
+                        val label = PhoneAlarmNotificationListener.getCachedLabel(h, m)
+                        results[id] = SyncAlarmItem(id = id, hour = h, minute = m, label = label, isEnabled = true)
+                    }
+                }
+
+                // Check surrounding context lines (up to 4 lines after)
+                val maxLookahead = minOf(lines.size, i + 5)
+                for (j in i..maxLookahead - 1) {
+                    val subLine = lines[j]
+
+                    origWhenDateRegex.find(subLine)?.let { match ->
+                        val h = match.groupValues[2].toIntOrNull()
+                        val m = match.groupValues[3].toIntOrNull()
+                        if (h != null && m != null) {
+                            val id = SyncAlarmItem.buildId(h, m, emptyList())
+                            val label = PhoneAlarmNotificationListener.getCachedLabel(h, m)
+                            results[id] = SyncAlarmItem(id = id, hour = h, minute = m, label = label, isEnabled = true)
+                        }
+                    }
+
+                    relativeRegex.find(subLine)?.let { match ->
+                        val relH = match.groupValues[1].toIntOrNull() ?: 0
+                        val relM = match.groupValues[2].toIntOrNull() ?: 0
+                        val cal = Calendar.getInstance().apply {
+                            add(Calendar.HOUR_OF_DAY, relH)
+                            add(Calendar.MINUTE, relM)
+                        }
+                        val h = cal.get(Calendar.HOUR_OF_DAY)
+                        val m = cal.get(Calendar.MINUTE)
+                        val id = SyncAlarmItem.buildId(h, m, emptyList())
+                        val label = PhoneAlarmNotificationListener.getCachedLabel(h, m)
+                        results[id] = SyncAlarmItem(id = id, hour = h, minute = m, label = label, isEnabled = true)
                     }
                 }
             }
 
             if (results.isNotEmpty()) {
-                Log.d(TAG, "DUMP parsed ${results.size} alarm(s)")
-                results
+                Log.d(TAG, "DUMP parsed ${results.size} distinct alarm(s)")
+                results.values.toList()
             } else {
                 null
             }
         } catch (e: Exception) {
-            Log.w(TAG, "DUMP read failed (DUMP permission may not be granted): ${e.message}")
+            Log.w(TAG, "DUMP read error: ${e.message}")
             null
         }
     }

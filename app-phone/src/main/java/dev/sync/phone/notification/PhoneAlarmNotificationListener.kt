@@ -67,7 +67,12 @@ class PhoneAlarmNotificationListener : NotificationListenerService() {
         val extras = notification.extras
         val hour   = extras?.getInt("android.alarmHour",   -1)?.takeIf { it >= 0 } ?: 0
         val minute = extras?.getInt("android.alarmMinute", -1)?.takeIf { it >= 0 } ?: 0
-        val label  = extras?.getString("android.title") ?: ""
+        val title  = extras?.getString(Notification.EXTRA_TITLE) ?: extras?.getString("android.title") ?: ""
+        val text   = extras?.getString(Notification.EXTRA_TEXT) ?: extras?.getString("android.text") ?: ""
+        val label  = if (text.isNotBlank() && title.contains("alarm", ignoreCase = true)) text else title
+        if (label.isNotBlank()) {
+            putCachedLabel(hour, minute, label)
+        }
 
         val alarmId = SyncAlarmItem.buildId(hour, minute, emptyList())
 
@@ -152,6 +157,18 @@ class PhoneAlarmNotificationListener : NotificationListenerService() {
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to send snooze intent", e)
                 false
+            }
+        }
+
+        private val labelCache = ConcurrentHashMap<String, String>()
+
+        fun getCachedLabel(hour: Int, minute: Int): String {
+            return labelCache["$hour:$minute"] ?: ""
+        }
+
+        fun putCachedLabel(hour: Int, minute: Int, label: String) {
+            if (label.isNotBlank()) {
+                labelCache["$hour:$minute"] = label
             }
         }
     }

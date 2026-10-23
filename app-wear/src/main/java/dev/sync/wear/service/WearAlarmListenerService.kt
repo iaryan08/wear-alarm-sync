@@ -8,9 +8,11 @@ import dev.sync.core.model.AlarmSyncMessage
 import dev.sync.core.model.RemoteAlarmEvent
 import dev.sync.core.model.RemoteAlarmEventMessage
 import dev.sync.core.model.SyncAction
-import dev.sync.wear.alarm.WearAlarmInjector
+import dev.sync.wear.alarm.WearAlarmChangeReceiver
+import dev.sync.wear.alarm.WearAlarmNotifier
+import dev.sync.wear.alarm.WearAlarmScheduler
+import dev.sync.wear.alarm.WearAlarmStorage
 import dev.sync.wear.notification.WearAlarmNotificationListener
-import dev.sync.wear.ui.WearRingingAlertActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -57,10 +59,27 @@ class WearAlarmListenerService : WearableListenerService() {
 
         Log.i(TAG, "Watch sync received: ${message.action} (${message.alarms.size} alarms)")
 
-        val injector = WearAlarmInjector(applicationContext)
+        val scheduler = WearAlarmScheduler(applicationContext)
+        message.alarms.forEach { WearAlarmChangeReceiver.echoes.recordRemoteSync(it) }
+
         when (message.action) {
-            SyncAction.UPSERT, SyncAction.FULL_SYNC -> message.alarms.forEach { injector.setAlarm(it) }
-            SyncAction.DELETE                       -> message.alarms.forEach { injector.dismissUpcoming(it) }
+            SyncAction.FULL_SYNC -> scheduler.reconcileSnapshot(message.alarms)
+            SyncAction.UPSERT -> {
+                message.alarms.forEach { scheduler.schedule(it) }
+                val current = WearAlarmStorage.getAlarms(applicationContext).toMutableList()
+                message.alarms.forEach { a ->
+                    current.removeAll { it.id == a.id }
+                    current.add(a)
+                }
+                WearAlarmStorage.saveAlarms(applicationContext, current)
+            }
+            SyncAction.DELETE -> {
+                message.alarms.forEach { scheduler.cancel(it.id) }
+                val current = WearAlarmStorage.getAlarms(applicationContext).toMutableList()
+                val delIds = message.alarms.map { it.id }.toSet()
+                current.removeAll { it.id in delIds }
+                WearAlarmStorage.saveAlarms(applicationContext, current)
+            }
         }
     }
 
@@ -75,19 +94,16 @@ class WearAlarmListenerService : WearableListenerService() {
 
         when (message.event) {
             RemoteAlarmEvent.RINGING_STARTED -> {
-                // Launch the full-screen ringing alert UI
-                val intent = Intent(applicationContext, WearRingingAlertActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    putExtra(WearRingingAlertActivity.EXTRA_HOUR,    message.hour)
-                    putExtra(WearRingingAlertActivity.EXTRA_MINUTE,  message.minute)
-                    putExtra(WearRingingAlertActivity.EXTRA_LABEL,   message.label)
-                    putExtra(WearRingingAlertActivity.EXTRA_ALARM_ID, message.alarmId ?: "")
-                }
-                applicationContext.startActivity(intent)
+                WearAlarmNotifier.showRingingNotification(
+                    context = applicationContext,
+                    hour = message.hour,
+                    minute = message.minute,
+                    label = message.label,
+                    alarmId = message.alarmId ?: ""
+                )
             }
             RemoteAlarmEvent.RINGING_STOPPED -> {
-                // Dismiss the alert activity if it's open
-                WearRingingAlertActivity.instance?.finish()
+                WearAlarmNotifier.cancelRingingNotification(applicationContext)
             }
             RemoteAlarmEvent.DISMISS -> {
                 val ok = WearAlarmNotificationListener.executeDismiss()
