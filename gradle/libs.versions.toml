@@ -1,0 +1,118 @@
+[versions]
+# ─────────────────────────────────────────────────────────────────────────────
+# Core build tools — verified floor: AGP 9.4.1 / Kotlin 2.4.10 / KSP 2.3.10
+# ─────────────────────────────────────────────────────────────────────────────
+agp                         = "9.4.1"
+kotlin                      = "2.4.10"
+ksp                         = "2.3.10"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Kotlin ecosystem
+# ─────────────────────────────────────────────────────────────────────────────
+kotlinx-serialization       = "1.11.0"
+kotlinx-coroutines          = "1.11.0"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AndroidX core
+# ─────────────────────────────────────────────────────────────────────────────
+core-ktx                    = "1.19.0"
+appcompat                   = "1.7.0"
+lifecycle                   = "2.11.0"
+activity-compose            = "1.13.0"
+splashscreen                = "1.2.0"
+work                        = "2.11.2"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Jetpack Compose (Phone) — Compose BOM 2026.09.00 is the latest stable
+# ─────────────────────────────────────────────────────────────────────────────
+compose-bom                 = "2026.09.00"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Wear OS — Wear Compose 1.5.0 (stable Aug 2025), Horologist 0.7.15 (Jul 2025)
+# ─────────────────────────────────────────────────────────────────────────────
+wear-compose                = "1.5.0"
+wear-tooling-preview        = "1.0.0"
+horologist                  = "0.7.15"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Wearable Data Layer — play-services-wearable 20.0.1 (latest stable)
+# ─────────────────────────────────────────────────────────────────────────────
+play-services-wearable      = "20.0.1"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Testing
+# ─────────────────────────────────────────────────────────────────────────────
+junit                       = "4.13.2"
+junit-ext                   = "1.2.1"
+espresso                    = "3.6.1"
+mockk                       = "1.13.13"
+
+[libraries]
+# ─────────────────────────────────────────────────────────────────────────────
+# AndroidX Core
+# ─────────────────────────────────────────────────────────────────────────────
+androidx-core-ktx                      = { group = "androidx.core",            name = "core-ktx",                      version.ref = "core-ktx" }
+androidx-appcompat                     = { group = "androidx.appcompat",        name = "appcompat",                     version.ref = "appcompat" }
+androidx-lifecycle-runtime-ktx         = { group = "androidx.lifecycle",        name = "lifecycle-runtime-ktx",         version.ref = "lifecycle" }
+androidx-lifecycle-runtime-compose     = { group = "androidx.lifecycle",        name = "lifecycle-runtime-compose",     version.ref = "lifecycle" }
+androidx-activity-compose              = { group = "androidx.activity",         name = "activity-compose",              version.ref = "activity-compose" }
+androidx-splashscreen                  = { group = "androidx.core",             name = "core-splashscreen",             version.ref = "splashscreen" }
+androidx-work-runtime-ktx              = { group = "androidx.work",             name = "work-runtime-ktx",              version.ref = "work" }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Jetpack Compose (Phone)
+# ─────────────────────────────────────────────────────────────────────────────
+compose-bom                            = { group = "androidx.compose",          name = "compose-bom",                   version.ref = "compose-bom" }
+compose-ui                             = { group = "androidx.compose.ui",       name = "ui" }
+compose-ui-graphics                    = { group = "androidx.compose.ui",       name = "ui-graphics" }
+compose-ui-tooling-preview             = { group = "androidx.compose.ui",       name = "ui-tooling-preview" }
+compose-material3                      = { group = "androidx.compose.material3",name = "material3" }
+compose-ui-tooling                     = { group = "androidx.compose.ui",       name = "ui-tooling" }
+compose-ui-test-manifest               = { group = "androidx.compose.ui",       name = "ui-test-manifest" }
+compose-ui-test-junit4                 = { group = "androidx.compose.ui",       name = "ui-test-junit4" }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Wear Compose (Watch) — standalone versioning, not tied to phone Compose BOM
+# ─────────────────────────────────────────────────────────────────────────────
+wear-compose-material                  = { group = "androidx.wear.compose",     name = "compose-material",              version.ref = "wear-compose" }
+wear-compose-material3                 = { group = "androidx.wear.compose",     name = "compose-material3",             version.ref = "wear-compose" }
+wear-compose-foundation                = { group = "androidx.wear.compose",     name = "compose-foundation",            version.ref = "wear-compose" }
+wear-compose-navigation                = { group = "androidx.wear.compose",     name = "compose-navigation",            version.ref = "wear-compose" }
+wear-tooling-preview                   = { group = "androidx.wear",             name = "wear-tooling-preview",          version.ref = "wear-tooling-preview" }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Horologist (Google's opinionated Wear OS toolkit)
+# ─────────────────────────────────────────────────────────────────────────────
+horologist-compose-layout              = { group = "com.google.android.horologist", name = "horologist-compose-layout",   version.ref = "horologist" }
+horologist-compose-material            = { group = "com.google.android.horologist", name = "horologist-compose-material",  version.ref = "horologist" }
+horologist-tiles                       = { group = "com.google.android.horologist", name = "horologist-tiles",             version.ref = "horologist" }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Wearable Data Layer
+# ─────────────────────────────────────────────────────────────────────────────
+play-services-wearable                 = { group = "com.google.android.gms",    name = "play-services-wearable",        version.ref = "play-services-wearable" }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Kotlin serialization & coroutines
+# ─────────────────────────────────────────────────────────────────────────────
+kotlinx-serialization-json             = { group = "org.jetbrains.kotlinx",     name = "kotlinx-serialization-json",    version.ref = "kotlinx-serialization" }
+kotlinx-coroutines-android             = { group = "org.jetbrains.kotlinx",     name = "kotlinx-coroutines-android",    version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-play-services       = { group = "org.jetbrains.kotlinx",     name = "kotlinx-coroutines-play-services", version.ref = "kotlinx-coroutines" }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Testing
+# ─────────────────────────────────────────────────────────────────────────────
+junit                                  = { group = "junit",                     name = "junit",                         version.ref = "junit" }
+junit-ext                              = { group = "androidx.test.ext",         name = "junit",                         version.ref = "junit-ext" }
+espresso-core                          = { group = "androidx.test.espresso",    name = "espresso-core",                 version.ref = "espresso" }
+mockk                                  = { group = "io.mockk",                  name = "mockk",                         version.ref = "mockk" }
+kotlinx-coroutines-test                = { group = "org.jetbrains.kotlinx",     name = "kotlinx-coroutines-test",       version.ref = "kotlinx-coroutines" }
+
+[plugins]
+android-application                    = { id = "com.android.application",                       version.ref = "agp" }
+android-library                        = { id = "com.android.library",                           version.ref = "agp" }
+kotlin-android                         = { id = "org.jetbrains.kotlin.android",                  version.ref = "kotlin" }
+kotlin-jvm                             = { id = "org.jetbrains.kotlin.jvm",                      version.ref = "kotlin" }
+kotlin-serialization                   = { id = "org.jetbrains.kotlin.plugin.serialization",     version.ref = "kotlin" }
+compose-compiler                       = { id = "org.jetbrains.kotlin.plugin.compose",           version.ref = "kotlin" }
+ksp                                    = { id = "com.google.devtools.ksp",                       version.ref = "ksp" }

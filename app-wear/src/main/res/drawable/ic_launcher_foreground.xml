@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Outer Sync Ring -->
+    <path
+        android:fillColor="#00E5FF"
+        android:pathData="M54,20 C35.2,20 20,35.2 20,54 C20,72.8 35.2,88 54,88 C72.8,88 88,72.8 88,54 C88,35.2 72.8,20 54,20 Z M54,82 C38.5,82 26,69.5 26,54 C26,38.5 38.5,26 54,26 C69.5,26 82,38.5 82,54 C82,69.5 69.5,82 54,82 Z" />
+    <!-- Alarm Clock Bells -->
+    <path
+        android:fillColor="#2979FF"
+        android:pathData="M24,28 L34,18 L38,22 L28,32 Z" />
+    <path
+        android:fillColor="#2979FF"
+        android:pathData="M84,28 L74,18 L70,22 L80,32 Z" />
+    <!-- Clock Hands -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M52,36 L56,36 L56,54 L68,62 L65,66 L52,56 Z" />
+    <!-- Center Dot -->
+    <path
+        android:fillColor="#00E5FF"
+        android:pathData="M54,50 C51.8,50 50,51.8 50,54 C50,56.2 51.8,58 54,58 C56.2,58 58,56.2 58,54 C58,51.8 56.2,50 54,50 Z" />
+</vector>

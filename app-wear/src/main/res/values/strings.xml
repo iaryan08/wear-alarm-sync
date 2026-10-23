@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Alarm Sync</string>
+    <string name="notification_listener_label">Alarm Notification Listener</string>
+    <string name="tile_label">Alarm Sync Tile</string>
+</resources>

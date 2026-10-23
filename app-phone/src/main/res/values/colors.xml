@@ -1,0 +1,4 @@
+<resources>
+    <!-- Matches windowSplashScreenBackground in themes.xml for seamless transition -->
+    <color name="ic_launcher_background">#000000</color>
+</resources>
